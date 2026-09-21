@@ -1,11 +1,16 @@
 {
-  "name": "A股专业股票分析平台",
-  "short_name": "A股分析",
-  "start_url": ".",
+  "name": "看盘股票 Web 应用",
+  "short_name": "看盘股票",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0f172a",
-  "description": "A股专业股票分析平台，适配移动端浏览器和 PWA 桌面安装。",
+  "orientation": "portrait-primary",
+  "background_color": "#0e1117",
+  "theme_color": "#0e1117",
+  "description": "A股实时行情、技术分析、自选股、预警和模拟交易 PWA。",
+  "categories": ["finance", "business"],
+  "lang": "zh-CN",
   "icons": [
     {
       "src": "/icon.svg",
