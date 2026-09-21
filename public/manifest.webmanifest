@@ -1,0 +1,17 @@
+{
+  "name": "A股专业股票分析平台",
+  "short_name": "A股分析",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0f172a",
+  "description": "A股专业股票分析平台，适配移动端浏览器和 PWA 桌面安装。",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
