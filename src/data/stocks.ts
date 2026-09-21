@@ -1,8 +1,8 @@
 export type PeriodKey = '1m' | '5m' | '15m' | '30m' | '60m' | '120m' | 'day' | 'week' | 'month' | 'year';
-export type DataSource = 'sina' | 'tencent' | 'fallback';
+export type DataSource = 'sina' | 'tencent' | 'eastmoney' | 'fallback';
 export type StockItem = { code:string; name:string; pinyin:string; price:number; prevClose:number; change:number; percent:number; volume:number; high:number; low:number; pe:number; pb:number; eps:number; roe:number; turnover:number };
 export type AlertRule = { priceAbove?:number; priceBelow?:number; changeAbove?:number; changeBelow?:number; lastTriggered?:boolean };
-export type QuoteResult = { stocks: StockItem[]; source: Exclude<DataSource, 'fallback'> | 'fallback' };
+export type QuoteResult = { stocks:StockItem[]; source:DataSource };
 type Seed = [string,string,string,number];
 const seed:Seed[]=[['sh600519','贵州茅台','guizhoumaotai',1645.2],['sh601318','中国平安','zhongguopingan',47.6],['sz002594','比亚迪','biyadi',287.5],['sz300750','宁德时代','ningdeshidai',345.2],['sz000858','五粮液','wuliangye',163.2],['sh601166','兴业银行','xingyeyinhang',18.3],['sh600036','招商银行','zhaoshangyinhang',34.8],['sh603799','华友钴业','huayouguoye',27.9],['sh600887','伊利股份','yili',42.3],['sh000001','上证指数','shangzhengzhishu',3112.86],['sz399001','深证成指','shenzhengchengzhi',10061.12],['sz399006','创业板指','chuangyebanzhi',2087.29]];
 
@@ -11,17 +11,19 @@ function fallback([code,name,pinyin,price]:Seed,index:number):StockItem{const pr
 export function buildMarketStocks(){return seed.map(fallback);}
 async function request(url:string){const controller=new AbortController();const timer=window.setTimeout(()=>controller.abort(),3000);try{const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error(`HTTP ${response.status}`);return await response.text();}finally{window.clearTimeout(timer);}}
 function parseSina(raw:string,code:string):StockItem|null{const body=raw.match(/=\"([^\"]*)/)?.[1];if(!body)return null;const fields=body.split(',');const price=Number(fields[3]);const prevClose=Number(fields[2]);if(!(price>0&&prevClose>0))return null;const known=seed.find(item=>item[0]===code);const change=Number((price-prevClose).toFixed(2));return {code,name:fields[0]||known?.[1]||code,pinyin:known?.[2]||fields[0]||code,price,prevClose,change,percent:Number((change/prevClose*100).toFixed(2)),volume:Number(fields[8]||0)*100,high:Number(fields[4]||price),low:Number(fields[5]||price),pe:0,pb:0,eps:0,roe:0,turnover:Number(fields[9]||0)/10000};}
-function parseTencent(raw:string,code:string):StockItem|null{const match=raw.match(/v_?[a-z]*${code}=\"([^\"]*)\"/i);const body=match?.[1]||raw.match(new RegExp(`v_${code}=\\\"([^\\\"]*)`))?.[1];if(!body)return null;const fields=body.split('~');const price=Number(fields[3]);const prevClose=Number(fields[4]);if(!(price>0&&prevClose>0))return null;const known=seed.find(item=>item[0]===code);const change=Number((price-prevClose).toFixed(2));return {code,name:fields[1]||known?.[1]||code,pinyin:known?.[2]||fields[1]||code,price,prevClose,change,percent:Number((change/prevClose*100).toFixed(2)),volume:Number(fields[36]||0),high:Number(fields[33]||price),low:Number(fields[34]||price),pe:0,pb:0,eps:0,roe:0,turnover:0};}
+function parseTencent(raw:string,code:string):StockItem|null{const body=raw.match(new RegExp(`v_${code}=\\\"([^\\\"]*)`))?.[1];if(!body)return null;const fields=body.split('~');const price=Number(fields[3]);const prevClose=Number(fields[4]);if(!(price>0&&prevClose>0))return null;const known=seed.find(item=>item[0]===code);const change=Number((price-prevClose).toFixed(2));return {code,name:fields[1]||known?.[1]||code,pinyin:known?.[2]||fields[1]||code,price,prevClose,change,percent:Number((change/prevClose*100).toFixed(2)),volume:Number(fields[36]||0),high:Number(fields[33]||price),low:Number(fields[34]||price),pe:0,pb:0,eps:0,roe:0,turnover:0};}
+function eastMoneySecid(code:string){return code.startsWith('sh')?`1.${code.slice(2)}`:`0.${code.slice(2)}`;}
+function parseEastMoney(raw:string,code:string):StockItem|null{try{const item=JSON.parse(raw)?.data;const price=Number(item?.f43)/100;const prevClose=Number(item?.f60)/100;if(!(price>0&&prevClose>0))return null;const known=seed.find(x=>x[0]===code);const change=Number((price-prevClose).toFixed(2));return {code,name:item?.f58||known?.[1]||code,pinyin:known?.[2]||item?.f58||code,price,prevClose,change,percent:Number((change/prevClose*100).toFixed(2)),volume:Number(item?.f47||0),high:Number(item?.f44||price)/100,low:Number(item?.f45||price)/100,pe:Number(item?.f162||0)/100,pb:Number(item?.f167||0)/100,eps:0,roe:0,turnover:Number(item?.f168||0)/100};}catch{return null;}}
 
 export async function fetchStockQuotesWithSource(codes=seed.map(item=>item[0])):Promise<QuoteResult>{
-  const normalized=codes.map(normalizeStockCode);
-  const sinaRows=await Promise.all(normalized.map(async code=>{try{return parseSina(await request(`https://hq.sinajs.cn/list=${code}`),code);}catch{return null;}}));
-  const sina=sinaRows.filter((item):item is StockItem=>item!==null);
-  if(sina.length===normalized.length)return {stocks:sina,source:'sina'};
-  const tencentRows=await Promise.all(normalized.map(async code=>{try{return parseTencent(await request(`https://qt.gtimg.cn/q=${code}`),code);}catch{return null;}}));
-  const tencent=tencentRows.filter((item):item is StockItem=>item!==null);
-  if(tencent.length)return {stocks:tencent,source:'tencent'};
-  return {stocks:buildMarketStocks(),source:'fallback'};
+ const normalized=codes.map(normalizeStockCode);
+ const sinaRows=await Promise.all(normalized.map(async code=>{try{return parseSina(await request(`https://hq.sinajs.cn/list=${code}`),code);}catch{return null;}}));
+ const sina=sinaRows.filter((item):item is StockItem=>item!==null); if(sina.length===normalized.length)return {stocks:sina,source:'sina'};
+ const tencentRows=await Promise.all(normalized.map(async code=>{try{return parseTencent(await request(`https://qt.gtimg.cn/q=${code}`),code);}catch{return null;}}));
+ const tencent=tencentRows.filter((item):item is StockItem=>item!==null); if(tencent.length===normalized.length)return {stocks:tencent,source:'tencent'};
+ const eastRows=await Promise.all(normalized.map(async code=>{try{return parseEastMoney(await request(`https://push2.eastmoney.com/api/qt/stock/get?fltt=2&invt=2&fields=f43,f44,f45,f47,f58,f60,f162,f167,f168&secid=${eastMoneySecid(code)}`),code);}catch{return null;}}));
+ const east=eastRows.filter((item):item is StockItem=>item!==null); if(east.length)return {stocks:east,source:'eastmoney'};
+ return {stocks:buildMarketStocks(),source:'fallback'};
 }
 export async function fetchStockQuotes(codes=seed.map(item=>item[0])){return (await fetchStockQuotesWithSource(codes)).stocks;}
 export async function fetchMarketIndexes(){return fetchStockQuotes(['sh000001','sz399001','sz399006']);}
