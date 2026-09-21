@@ -1,18 +1,26 @@
 {
-  "name": "a-stock-analysis-platform",
+  "name": "stock-watch-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "mobile:build": "npm run build && npx cap sync",
+    "android:open": "npm run mobile:build && npx cap open android",
+    "android:run": "npm run mobile:build && npx cap run android",
+    "android:debug": "npm run mobile:build && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run mobile:build && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",
